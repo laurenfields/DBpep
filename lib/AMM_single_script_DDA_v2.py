@@ -191,6 +191,10 @@ def list_of_residues(pot_mod_peptide):
             list_of_res.append(c)
     return list_of_res
 
+### end of theoretical fragment calculator ###
+
+### start of monoisotopic mass calculator ###
+
 def monoisotopic_mass_calculator(peptide_from_fasta):
         plain_peptide = re.sub("[\(\[].*?[\)\]]", "",peptide_from_fasta)
         res_list_for_fragment = list_of_residues(peptide_from_fasta)
@@ -201,9 +205,9 @@ def monoisotopic_mass_calculator(peptide_from_fasta):
         peptide_mass = (sum(mass_of_residues)) + check_termini(peptide_from_fasta) + check_PTM(peptide_from_fasta)
         mass_to_charge = (peptide_mass + (proton_mass * charge))/charge
         return mass_to_charge
+### end of monoisotopic mass calculator ###
 
-### end of theoretical fragment calculator ###
-
+### start of convert fasta to dataframe with monoisotopic masses ###
 fasta_to_df = []
 fasta_monoiso_mass = []
 with open(db_path) as fasta_file:  # Will close handle cleanly
@@ -216,7 +220,9 @@ for sequence in fasta_to_df:
 db = pd.DataFrame()
 db['Sequence'] = fasta_to_df
 db['Monoisotopic Mass'] = fasta_monoiso_mass
+### end of convert fasta to dataframe with monoisotopic masses ###
 
+### start of importing spectra output from RawConverter ###
 raw_converter = pd.read_csv(raw_converter_path, sep=",",skiprows=[0], names= ["m/z","resolution","charge","intensity", "MS2", "scan_number","precursor_charge","null"])
 
 raw_converter = raw_converter[raw_converter['charge'] != 0]
@@ -247,10 +253,14 @@ exp_precursor['Precursor scan'] = precursor_scan
 exp_precursor = exp_precursor.drop_duplicates() 
 exp_precursor['Monoisotopic Mass'] =  ((exp_precursor['Precursor actual m/z']) * (exp_precursor['Precursor actual charge']))-(h_mass*(exp_precursor['Precursor actual charge']))
 
+### end of importing spectra output from RawConverter ###
+
 if len(db)<1: #throws an error if database file is empty
     raise ValueError('Database file is empty')
 
 precursor_temp_cutoff = precursor_error_cutoff/1000
+
+### start of precursor AMM ###
 
 precursor_amm_actual_mz = []
 precursor_amm_actual_z = []
@@ -324,7 +334,9 @@ final_report_storage_peptide = []
 for m in candidate_sequences_raw:
     if m not in candidate_sequences:
         candidate_sequences.append(m)
+### end of precursor AMM ###
 
+### start of fragment AMM ###
 for peptide in candidate_sequences:
         ###pull theoretical masses###
         plain_peptide = re.sub("[\(\[].*?[\)\]]", "",peptide)
@@ -449,7 +461,9 @@ for peptide in candidate_sequences:
             seq_coverage = (len(merge_fragment_match_filtered_ion)/len(ion_report_filtered_ion))*100
             final_report_storage_seq_coverage.append(seq_coverage)
             final_report_storage_peptide.append(peptide)
+### end of fragment AMM ###
 
+### start of results compiling ###
 final_report = pd.DataFrame()
 final_report['Neuropeptide'] = final_report_storage_peptide
 final_report['Scan'] = final_report_storage_scan
@@ -464,5 +478,8 @@ file_path = output_folder + '\\final_report.csv'
 with open(file_path,'w',newline='') as filec:
         writerc = csv.writer(filec)
         final_report_scan.to_csv(filec,index=False) 
+        
+### end of results compiling ###
+
 end = time.time()
 print('Analysis complete. Time elapsed:',(end - start),'s')
