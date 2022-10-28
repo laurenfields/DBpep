@@ -11,13 +11,15 @@ import re
 import os
 from itertools import permutations
 from Bio.SeqIO.FastaIO import SimpleFastaParser
+import random
+import collections
 import time
 start = time.time()
 
-output_folder = r"C:\Users\lawashburn\Documents\DBpep_v2\results_log\20221020\v10" #folder in which all output directories will be generated
-raw_converter_path =  r"C:\Users\lawashburn\Documents\DBpep_v2\results_log\20221017\DDA_results\Brain1_2_formatted.txt" #path to formatted RawConverter output
+output_folder = r"C:\Users\lawashburn\Documents\DBpep_v2\results_log\20221020\v29" #folder in which all output directories will be generated
+raw_converter_path =  r"C:\Users\lawashburn\Documents\DBpep_v2\results_log\formatted_MS2\CoG2_formatted.txt" #path to formatted RawConverter output
 db_path = r"C:\Users\lawashburn\Desktop\ALC50_Mass_Search_Files\duplicate_removed_crustacean_database_validated_formatted20220725.fasta" #database fasta path
-sample_name = 'DIA_20220505_Exp15_20220816'
+sample_name = 'CoG2'
 promex_cutoff = -10
 precursor_error_cutoff = 20 #ppm
 fragment_error_cutoff = 0.02
@@ -25,12 +27,12 @@ precursor_charges = [1,2,3,4,5,6]
 fragment_charges = [1,2,3,4]
 h_mass = 1.00784
 
-amidation = True
-oxidation_M_status = True
-pyroglu_E_status = True
-pyroglu_Q_status = True
-sulfo_Y_status = True
-max_modifications = 3
+amidation = False
+oxidation_M_status = False
+pyroglu_E_status = False
+pyroglu_Q_status = False
+sulfo_Y_status = False
+max_modifications = 1
 
 ### generating database of mods selected ###
 mods = []
@@ -221,6 +223,182 @@ fasta_to_df = []
 with open(db_path) as fasta_file:  # Will close handle cleanly
     for title, sequence in SimpleFastaParser(fasta_file):
         fasta_to_df.append(sequence)
+um_database_list=fasta_to_df
+###start of decoy db generation function###
+#um_database_list = db['Sequence'].to_list()
+modified_db_list = []
+
+for db in um_database_list:
+    while '(' in db:
+        db = db.replace(db[db.index('('):db.index(')')+1],'')
+    modified_db_list.append(db)
+   
+database = modified_db_list 
+###
+
+
+class Identity_Threshold:
+    def ID_threshold_check(decoy_seqeunce):
+        """
+        ### Local alignment with the decoy sequence and all possible target sequences in the database.
+        
+        Args:
+            decoy_sequence (str): decoy sequence generated from the target-decoy method
+        Return:
+            True: if the decoy sequence has less than 50% similarity with all target sequences in the database
+            False: if the decoy sequence has more than 50% similarity with any of target sequence in the database
+        """
+        filtered_target = []
+        if len(decoy_seqeunce) == 2:    ### bypassing sequence length with 2
+            return True
+        for t in database:  ### loops through all database sequence that has the same length as decoy sequence
+            if len(decoy_seqeunce) == len(t):
+                filtered_target.append(t)
+        for target_sequence in filtered_target:
+            alignment_score = 0
+            for amino_acid in list(zip(target_sequence,decoy_seqeunce)):
+                if amino_acid[0] == amino_acid[1]:
+                    alignment_score+=1
+            if alignment_score/len(decoy_seqeunce) < 0.5:
+                continue
+            else:
+                return False
+        return True
+    
+    def max_ID_threshold(decoy_sequence):
+        """
+        ### Find the maximum identity threshold percentage from the decoy sequence taht matches to target sequences
+        
+        Args:
+            decoy_sequence (str): decoy sequence generated from the target-decoy method
+        Return:
+            list:   max_ID_T (float): maximum identity threshold percentage
+                    target_index (int): index of corresponding target sequence that yields the maximum identity threshold percentage
+        """
+        max_ID_T = 0
+        target_list_all = database
+        target_list = []
+        for t in target_list_all:
+            if len(t) == len(decoy_sequence):
+                target_list.append(t)
+        for target_index in range(len(target_list)):
+            target_sequence = target_list[target_index]
+            alignment_score = 0
+            for amino_acid in list(zip(target_sequence,decoy_sequence)):
+                if amino_acid[0] == amino_acid[1]:
+                    alignment_score+=1
+            alignment_ID_threshold = alignment_score/len(decoy_sequence)
+            if alignment_ID_threshold > max_ID_T:
+                max_ID_T = alignment_ID_threshold
+        return [max_ID_T, target_index]
+    
+    def alignment_sequence_index(decoy_sequence):
+        """
+        ### Gives the matched residues index from target and decoy sequences
+        
+        Args:
+            decoy_sequence (str): decoy sequence generated from the target-decoy method
+        Return:
+            match_index_list (list): list contains the index of matched residues from both target and decoy sequences
+        """
+        max_num, index = Identity_Threshold.max_ID_threshold(decoy_sequence)
+        target_sequence = database[index]
+        x = 0
+        match_index_list = []
+        for amino_acid in list(zip(target_sequence,decoy_sequence)):
+            if amino_acid[0] == amino_acid[1]:
+                match_index_list.append(x)
+            x+=1
+        return match_index_list 
+    
+    
+def shuffled_decoy_database():
+    """
+    ### Residues in each target sequences are randomly shuffled and generated as the decoy sequences
+    
+    Return:
+        shuffled_decoy_list (list): Shuffle decoy database with Identify Threshold applied
+    """
+    shuffled_decoy_list = []
+    
+    def shuffled_algorithm(database_sequence):
+        """
+        ### Shuffles each amino acid residue in each target sequences
+        
+        Args:
+            database_seqeuence (str): target sequence from the database
+        
+        Return:
+            shuffled_database_sequence (str): decoy seqeunce from shuffle decoy method
+        """
+        shuffled_database_sequence = ''
+        for i in random.sample(range(0,len(database_sequence)),len(database_sequence)):
+            shuffled_database_sequence += database_sequence[i]
+        return shuffled_database_sequence
+
+    shuffled_table = []
+    # original shuffled decoy list
+    for database_sequence in database:
+        shuffled_decoy_sequence = shuffled_algorithm(database_sequence)
+        if len(database_sequence) == 2:         ### to make sure sequence with 2 residues have different decoy sequence with original database sequence
+            while database_sequence==shuffled_decoy_sequence:
+                shuffled_decoy_sequence =shuffled_algorithm(database_sequence) 
+                
+        shuffled_decoy_list.append(shuffled_decoy_sequence)
+        shuffled_table.append([shuffled_decoy_sequence, round(Identity_Threshold.max_ID_threshold(shuffled_decoy_sequence)[0],3)])
+        
+    iterations = 1
+    over_threshold_list = []
+    for decoy_index in range(len(shuffled_decoy_list)):
+        decoy_sequence = shuffled_decoy_list[decoy_index]
+        if len(decoy_sequence) == 2:    #bypassing sequence with length of 2
+            continue
+        if not Identity_Threshold.ID_threshold_check(decoy_sequence):
+            over_threshold_list.append([decoy_index, decoy_sequence])
+    
+    while iterations < 31:
+        if len(over_threshold_list) == 0:
+            break
+        reshuffled_list = []
+        for index,sequence in over_threshold_list:   
+            reshuffled = shuffled_algorithm(sequence)
+            reshuffled_list.append([index, sequence, reshuffled])
+        for index,sequence,reshuffled in reshuffled_list:
+            if Identity_Threshold.ID_threshold_check(reshuffled):
+                shuffled_decoy_list[index] = reshuffled
+                over_threshold_list.remove([index,sequence])
+        if len(over_threshold_list) == 0:
+            iterations = 30
+        iterations+=1
+        
+    if len(over_threshold_list) > 0:
+        all_amino_acid_left = []
+        for i, seq in over_threshold_list:
+            for s in seq:
+                all_amino_acid_left.append(s)
+    
+        if len(over_threshold_list) > 0:
+            for index, sequence in over_threshold_list:
+                while not Identity_Threshold.ID_threshold_check(sequence):
+                    index_list = Identity_Threshold.alignment_sequence_index(sequence)
+                    mutation = sequence.replace(sequence[index_list[0]],random.choice(all_amino_acid_left))        ### double check this
+                    if Identity_Threshold.ID_threshold_check(mutation):
+                        sequence = mutation
+                        shuffled_decoy_list[index] = mutation
+                    else:
+                        continue
+    return shuffled_decoy_list
+
+def target_decoy_dataframe():
+    target_decoy_df = pd.DataFrame()
+    target_decoy_df['Target DB Sequence'] = database
+    target_decoy_df['Decoy DB Sequence'] = shuffled_decoy_database()
+    
+    decoy_entries = target_decoy_df['Decoy DB Sequence'].values.tolist()
+    fasta_to_df.extend(decoy_entries)
+    return target_decoy_df
+###end of decoy db generation function###
+target_decoy_dataframe()
 
 final_seq_list = []
 for b in fasta_to_df:
@@ -318,6 +496,7 @@ for b in fasta_to_df:
 ###end of PTM generation###
 ###start of mass calculations ###
 fasta_monoiso_mass = []
+
 for sequence in final_seq_list:
     mono_mass = monoisotopic_mass_calculator(sequence)
     fasta_monoiso_mass.append(mono_mass)
