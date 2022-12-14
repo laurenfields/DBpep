@@ -17,28 +17,125 @@ import random
 import collections
 import time
 import numpy as np
+import pickle
 start = time.time()
 
-output_folder = r"C:\Users\lawashburn\Documents\DBpep_v2\results_log\20221201\v25_SG2" #folder in which all output directories will be generated
-raw_converter_path =  r"C:\Users\lawashburn\Documents\DBpep_v2\results_log\formatted_MS2\SG2_formatted.txt" #path to formatted RawConverter output
-db_path = r"C:\Users\lawashburn\Desktop\ALC50_Mass_Search_Files\duplicate_removed_crustacean_database_validated_formatted20220725.fasta" #database fasta path
-sample_name = 'SG2'
-precursor_error_cutoff = 20 #ppm
-fragment_error_cutoff = 0.02
-precursor_charges = [1,2]
-fragment_charges = [1,2,3,4]
-h_mass = 1.00784
-bin_size = 1
-number_of_steps = 7
-min_seq_coverage = 25
+#output_folder = r"C:\Users\lawashburn\Documents\DBpep_v2\results_log\20221201\v29" #folder in which all output directories will be generated
+#raw_converter_path =  r"C:\Users\lawashburn\Documents\DBpep_v2\results_log\formatted_MS2\CoG1_formatted.csv" #path to formatted RawConverter output
+#db_path = r"C:\Users\lawashburn\Desktop\ALC50_Mass_Search_Files\duplicate_removed_crustacean_database_validated_formatted20220725.fasta" #database fasta path
+#sample_name = 'CoG2'
+#precursor_error_cutoff = 20 #ppm
+#fragment_error_cutoff = 0.02
+#precursor_charges = [1,2]
+#fragment_charges = [1,2]
+
+#bin_size = 1
+#number_of_steps = 7
+#min_seq_coverage = 25
 normalization=50
 
-amidation = True
-oxidation_M_status = True
-pyroglu_E_status = True
-pyroglu_Q_status = True
-sulfo_Y_status = True
-max_modifications = 2
+#amidation = True
+#oxidation_M_status = False
+#pyroglu_E_status = False
+#pyroglu_Q_status = False
+#sulfo_Y_status = False
+#max_modifications = 1
+
+#amidation = False
+#oxidation_M_status = False
+#pyroglu_E_status = False
+#pyroglu_Q_status = False
+#sulfo_Y_status = False
+
+
+
+precursor_charges = []
+fragment_charges = []
+
+amidation_record = []
+ox_m_record = []
+pg_E_record = []
+pg_Q_record = []
+sulf_Y_record = []
+
+### Load pickle files with variables input from GUI ###
+with open('output_directory.pkl','rb') as file:
+    output_folder = pickle.load(file)
+with open('rawconverter_path.pkl','rb') as file:
+    raw_converter_path = pickle.load(file)
+with open('db_path.pkl','rb') as file:
+    db_path = pickle.load(file)
+with open('sample_name.pkl','rb') as file:
+    sample_name = pickle.load(file)
+with open('prec_err.pkl','rb') as file:
+    precursor_error_cutoff = pickle.load(file)
+    precursor_error_cutoff = float(precursor_error_cutoff)
+with open('frag_err.pkl','rb') as file:
+    fragment_error_cutoff = pickle.load(file)
+    fragment_error_cutoff = float(fragment_error_cutoff)
+with open('prec_z.pkl','rb') as file:
+    precursor_charges_prelim = pickle.load(file)    
+    precursor_charges_prelim = int(precursor_charges_prelim)
+    for f in range(1,precursor_charges_prelim):
+        precursor_charges.append(f)
+with open('frag_z.pkl','rb') as file:
+    fragment_charges_prelim = pickle.load(file) 
+    fragment_charges_prelim = int(fragment_charges_prelim)
+    for f in range(1,fragment_charges_prelim):
+        fragment_charges.append(f)
+with open('bin_size.pkl','rb') as file:
+    bin_size = pickle.load(file)  
+    bin_size = float(bin_size)
+with open('bin_steps.pkl','rb') as file:
+    number_of_steps = pickle.load(file)  
+    number_of_steps = int(number_of_steps)
+with open('sequence_coverage.pkl','rb') as file:
+    min_seq_coverage = pickle.load(file)  
+    min_seq_coverage = float(min_seq_coverage)
+with open('max_PTMs.pkl','rb') as file:
+    max_modifications = pickle.load(file)  
+    max_modifications = int(max_modifications)
+with open('amidation.pkl','rb') as file:
+    amidation_prelim_status = pickle.load(file)
+    amidation_prelim_status = int(amidation_prelim_status)
+    if amidation_prelim_status == 1:
+        amidation_record.append(True)
+    if amidation_prelim_status == 0:
+        amidation_record.append(False)
+with open('oxidation_M.pkl','rb') as file:
+    oxM_prelim_status = pickle.load(file)
+    oxM_prelim_status = int(oxM_prelim_status)
+    if oxM_prelim_status == 1:
+        ox_m_record.append(True)
+    if oxM_prelim_status == 0:
+        ox_m_record.append(False)
+with open('pyroglu_E.pkl','rb') as file:
+    pgE_prelim_status = pickle.load(file)
+    pgE_prelim_status= int(pgE_prelim_status)
+    if pgE_prelim_status == 1:
+        pg_E_record.append(True)
+    if pgE_prelim_status == 0:
+        pg_E_record.append(False)
+with open('pyroglu_Q.pkl','rb') as file:
+    pgQ_prelim_status = pickle.load(file)
+    pgQ_prelim_status = int(pgQ_prelim_status)
+    if pgQ_prelim_status == 1:
+        pg_Q_record.append(True)
+    if pgQ_prelim_status == 0:
+        pg_Q_record.append(False)      
+with open('sulfation_Y.pkl','rb') as file:
+    sulfY_prelim_status = pickle.load(file)
+    sulfY_prelim_status = int(sulfY_prelim_status)
+    if sulfY_prelim_status == 1:
+        sulf_Y_record.append(True)
+    if sulfY_prelim_status == 0:
+        sulf_Y_record.append(False)
+
+amidation = amidation_record[-1]
+oxidation_M_status = ox_m_record[-1]
+pyroglu_E_status = pg_E_record[-1]
+pyroglu_Q_status = pg_Q_record[-1]
+sulfo_Y_status = sulf_Y_record[-1]
 
 ### generating database of mods selected ###
 mods = []
@@ -68,6 +165,7 @@ if not os.path.exists(peptide_report_output):
     os.makedirs(peptide_report_output)
 
 ### Theoretical fragment calculator ###
+h_mass = 1.00784
 proton_mass = 1.00727646688
 charge = 1 #fragment charge
 H = 1.0078250352
@@ -431,8 +529,8 @@ def param_log_export():
     sample_ID_report = 'Sample name: ' + sample_name
     p_err_report = 'Precursor error threshold (ppm): ' + str(precursor_error_cutoff)
     f_err_report = 'Fragment error threshold (Da): ' + str(fragment_error_cutoff)
-    max_p_charge_report = 'Maximum precursor charge: +' + str(precursor_charges[-1])
-    max_f_charge_report = 'Maximum fragment charge: +' + str(fragment_charges[-1])
+    max_p_charge_report = 'Maximum precursor charge: +' + str(precursor_charges)
+    max_f_charge_report = 'Maximum fragment charge: +' + str(fragment_charges)
     bin_size_report = 'Bin size: ' + str(bin_size)
     no_steps_report = 'Number of steps: ' + str(number_of_steps)
     normalization_report = 'Normalized intensity : ' + str(normalization)    
@@ -448,7 +546,7 @@ def param_log_export():
                           bin_size_report,no_steps_report,normalization_report,max_modifications_report,amidation_modifications_report,oxidation_M_status_modifications_report,
                           pyroglu_E_status_modifications_report,pyroglu_Q_status_modifications_report,sulfo_Y_status_modifications_report,elapsed_time_report]
 
-    param_file_path = output_folder + '\\' + 'parameter_file.txt'
+    param_file_path = output_folder + '\\' + 'parameter_file_backend.txt'
     with open(param_file_path,'a') as f:
         f.writelines('\n'.join(param_file_entries))
 ###end of decoy db generation function###
