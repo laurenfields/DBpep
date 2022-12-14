@@ -2,10 +2,17 @@
 
 import csv
 import pandas as pd
+import pickle
 
-working_directory = r"C:\Users\lawashburn\Documents\DBpep_v2\DDA_results"
-MS2_path = r"D:\HyPep1.0\HyPep_Simple_ASMS_Results\Raw_Files\RawConverter_output\2021_0817_Brain_1.ms2"
-tissue_type = 'Brain1_3'
+with open('output_directory.pkl','rb') as file:
+    working_directory = pickle.load(file)
+with open('rawconverter_path.pkl','rb') as file:
+    MS2_path = pickle.load(file)
+with open('sample_name.pkl','rb') as file:
+    tissue_type = pickle.load(file)
+#working_directory = r"C:\Users\lawashburn\Documents\DBpep_v2\results_log\formatted_MS2"
+#MS2_path = r"D:\HyPep1.0\HyPep_Simple_ASMS_Results\Raw_Files\RawConverter_output\2021_0817_TG_1.ms2"
+#tissue_type = 'TG1'
 
 with open(MS2_path) as input:
     lst = [line.strip() for line in input]
@@ -83,6 +90,11 @@ with open(out_name,'w') as output:
         for j in i:
             output.write(str(j + ','))
         output.write('\n')
+
+raw_converter_new_output = 'raw_converter_new_output.pkl'
+with open(raw_converter_new_output, 'wb') as file_e:
+    pickle.dump(out_name, file_e)
+
 # =============================================================================
 # csv_name =  rawconverter_formatted_out_file_name_path_csv
 # read_txt = pd.read_csv(out_name)

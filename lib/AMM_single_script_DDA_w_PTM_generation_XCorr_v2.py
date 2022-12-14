@@ -18,8 +18,10 @@ import collections
 import time
 import numpy as np
 import pickle
+from tkinter import messagebox
+import subprocess
+from subprocess import Popen, PIPE
 start = time.time()
-
 #output_folder = r"C:\Users\lawashburn\Documents\DBpep_v2\results_log\20221201\v29" #folder in which all output directories will be generated
 #raw_converter_path =  r"C:\Users\lawashburn\Documents\DBpep_v2\results_log\formatted_MS2\CoG1_formatted.csv" #path to formatted RawConverter output
 #db_path = r"C:\Users\lawashburn\Desktop\ALC50_Mass_Search_Files\duplicate_removed_crustacean_database_validated_formatted20220725.fasta" #database fasta path
@@ -47,7 +49,18 @@ normalization=50
 #pyroglu_Q_status = False
 #sulfo_Y_status = False
 
-
+def Run_RawConverter_Formatting():
+    try:
+        subprocess.run(['python.exe','RawConverter_Formatting.py'],check=True)
+        #messagebox.showinfo("Message","Analysis results have been exported")
+        with open('raw_converter_new_output.pkl','rb') as file:
+            raw_converter_path_updated = pickle.load(file)
+            return raw_converter_path_updated
+    except FileNotFoundError:
+        messagebox.showinfo('Error','One or more input entries is invalid. See documentation.')
+    except Exception:
+        messagebox.showerror('Error','One or more input entries is invalid. See documentation.')
+    
 
 precursor_charges = []
 fragment_charges = []
@@ -63,6 +76,12 @@ with open('output_directory.pkl','rb') as file:
     output_folder = pickle.load(file)
 with open('rawconverter_path.pkl','rb') as file:
     raw_converter_path = pickle.load(file)
+    if '.ms2' in raw_converter_path:
+        raw_converter_path = Run_RawConverter_Formatting()
+    elif '.MS2' in raw_converter_path:
+        raw_converter_path = Run_RawConverter_Formatting()
+    elif '.txt' in raw_converter_path:
+        pass
 with open('db_path.pkl','rb') as file:
     db_path = pickle.load(file)
 with open('sample_name.pkl','rb') as file:
@@ -76,12 +95,12 @@ with open('frag_err.pkl','rb') as file:
 with open('prec_z.pkl','rb') as file:
     precursor_charges_prelim = pickle.load(file)    
     precursor_charges_prelim = int(precursor_charges_prelim)
-    for f in range(1,precursor_charges_prelim):
+    for f in range(1,precursor_charges_prelim+1):
         precursor_charges.append(f)
 with open('frag_z.pkl','rb') as file:
     fragment_charges_prelim = pickle.load(file) 
     fragment_charges_prelim = int(fragment_charges_prelim)
-    for f in range(1,fragment_charges_prelim):
+    for f in range(1,fragment_charges_prelim+1):
         fragment_charges.append(f)
 with open('bin_size.pkl','rb') as file:
     bin_size = pickle.load(file)  
